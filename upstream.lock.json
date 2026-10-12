@@ -1,0 +1,30 @@
+{
+  "dataPlane": {
+    "repository": "https://github.com/wellmanifest/data-plane",
+    "commit": "bdf1a3bc46aa6ef2408249f4d5733760f864e7a7",
+    "files": {
+      "conformance/line.py": "9fc78783586c55044bed48a4b34a4bc65858dbbc7ba3756223a6c617fa5443f2",
+      "conformance/event_store.py": "acd4a4cee0397848b410a7113913c6c2dcc3c06254744f0ed6a3858eb67a217f",
+      "contracts/operations.json": "57d52e942ef81ffa00b3681b6dccfc7b523f8be835bf2b2afb8ca5eb1b677b98",
+      "contracts/line-bindings.json": "94cb3688edaf599ff3256b00ac33e3fdaefb3591c9ce339a0ac0c41a6ff8e7c5",
+      "logs-error-catalog.v1.json": "40b231992e3d7fdad5ce5e5d421e2b09ce2dac2192ce9a7b78aa02d13b97b36b",
+      "proto/line.proto": "da25464b2ea2d8f862bc80e46c382913afb605b31a670d359c72c4699a7313e2"
+    }
+  },
+  "logs": {
+    "repository": "https://github.com/wellmanifest/logs",
+    "commit": "cd9d9558e09b9135ef92712096eb951fd524aa75",
+    "files": {
+      "standard/logs_check.py": "aab380273416b72528079679fb9b5d0659ffe305f4c82bdc95025f41926e162e",
+      "contracts/logs.contract.v0.5.json": "72e16ac823359879e01722e1e3e7017f50524c8cdf54e8eaec9d8802bc804e36"
+    }
+  },
+  "docs": {
+    "repository": "https://github.com/wellmanifest/docs",
+    "commit": "ebe7501063ef4f3e63ded610c2d3183010ca636e",
+    "files": {
+      "docs/standard/policy.json": "f6ba9c011ea1d9260e7fac3a1638a767d5ebc9f7d9b32ed51cc3aea22fe95d8c",
+      "docs/standard/check.py": "8d76dc88c82897332d3671c236eac20610ed42713ad9dbb6e1515e1c4d9175f3"
+    }
+  }
+}

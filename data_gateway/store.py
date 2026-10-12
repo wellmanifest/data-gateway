@@ -1,0 +1,89 @@
+"""SQLite event store for the reference gateway: domain events, resource projection, receipts and audit chain.
+
+One writer per database file. Every effect of a command and its audit event commit in one transaction (ES-012).
+"""
+from __future__ import annotations
+import sqlite3
+import threading
+from contextlib import contextmanager
+
+from data_gateway.upstream import data_plane
+
+ZERO='0'*64
+DDL='''
+CREATE TABLE IF NOT EXISTS events (
+ event_urn TEXT PRIMARY KEY, stream_urn TEXT NOT NULL, version INTEGER NOT NULL,
+ hash TEXT NOT NULL, canonical BLOB NOT NULL, UNIQUE(stream_urn,version));
+CREATE TABLE IF NOT EXISTS blobs (sha256 TEXT PRIMARY KEY, content BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS resources (
+ urn TEXT PRIMARY KEY, sha256 TEXT NOT NULL REFERENCES blobs(sha256), media_type TEXT NOT NULL,
+ byte_length INTEGER NOT NULL, version INTEGER NOT NULL,
+ FOREIGN KEY(urn,version) REFERENCES events(stream_urn,version));
+CREATE TABLE IF NOT EXISTS receipts (
+ operation TEXT NOT NULL, key TEXT NOT NULL, input_hash TEXT NOT NULL, result BLOB NOT NULL,
+ PRIMARY KEY(operation,key));
+CREATE TABLE IF NOT EXISTS audit (sequence INTEGER PRIMARY KEY, hash TEXT NOT NULL, canonical BLOB NOT NULL);
+CREATE TRIGGER IF NOT EXISTS immutable_event_update BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT,'immutable event'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_event_delete BEFORE DELETE ON events BEGIN SELECT RAISE(ABORT,'immutable event'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_audit_update BEFORE UPDATE ON audit BEGIN SELECT RAISE(ABORT,'immutable audit'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_audit_delete BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT,'immutable audit'); END;
+'''
+
+class Store:
+    def __init__(self,path):
+        _,_,events=data_plane()
+        self.canonical=events.canonical;self.event_hash=events.event_hash
+        self.db=sqlite3.connect(str(path),isolation_level=None,check_same_thread=False)
+        # data-plane low-ram-v1 SQLite profile: durability over write speed, small cache.
+        for pragma in ('foreign_keys = ON','journal_mode = WAL','synchronous = FULL','cache_size = -2048','busy_timeout = 5000'):
+            self.db.execute('PRAGMA '+pragma)
+        self.db.executescript(DDL)
+        self.lock=threading.Lock()
+
+    def close(self): self.db.close()
+
+    @contextmanager
+    def transaction(self):
+        with self.lock:
+            self.db.execute('BEGIN IMMEDIATE')
+            try:
+                yield self
+                self.db.execute('COMMIT')
+            except BaseException:
+                self.db.execute('ROLLBACK');raise
+
+    def append_event(self,event):
+        raw=self.canonical(event)
+        self.db.execute('INSERT INTO events VALUES (?,?,?,?,?)',(event['eventUrn'],event['streamUrn'],int(event['streamVersion']),event['eventHash'],raw))
+
+    def stream_head(self,stream_urn):
+        row=self.db.execute('SELECT version,hash FROM events WHERE stream_urn=? ORDER BY version DESC LIMIT 1',(stream_urn,)).fetchone()
+        return row or (0,ZERO)
+
+    def receipt(self,operation,key):
+        return self.db.execute('SELECT input_hash,result FROM receipts WHERE operation=? AND key=?',(operation,key)).fetchone()
+
+    def put_receipt(self,operation,key,input_hash,result):
+        self.db.execute('INSERT INTO receipts VALUES (?,?,?,?)',(operation,key,input_hash,self.canonical(result)))
+
+    def put_resource(self,urn,sha256,content,media_type,version):
+        self.db.execute('INSERT OR IGNORE INTO blobs VALUES (?,?)',(sha256,content))
+        self.db.execute('INSERT INTO resources VALUES (?,?,?,?,?)',(urn,sha256,media_type,len(content),version))
+
+    def resource(self,urn):
+        return self.db.execute('SELECT r.sha256,r.media_type,r.byte_length,b.content FROM resources r JOIN blobs b USING(sha256) WHERE r.urn=?',(urn,)).fetchone()
+
+    def append_audit(self,build):
+        """`build(sequence, previous_hash)` returns the complete event; the chain is assigned inside the transaction."""
+        row=self.db.execute('SELECT sequence,hash FROM audit ORDER BY sequence DESC LIMIT 1').fetchone()
+        sequence,previous=(row[0]+1,row[1]) if row else (1,ZERO)
+        event=build(sequence,previous);event['eventHash']=self.event_hash(event)
+        self.db.execute('INSERT INTO audit VALUES (?,?,?)',(sequence,event['eventHash'],self.canonical(event)))
+        return event
+
+    def audit_jsonl(self):
+        """Canonical wellmanifest/logs JSONL bytes of the audit stream."""
+        return b''.join(raw+b'\n' for (raw,) in self.db.execute('SELECT canonical FROM audit ORDER BY sequence'))
+
+    def domain_events(self):
+        return [raw for (raw,) in self.db.execute('SELECT canonical FROM events ORDER BY rowid')]

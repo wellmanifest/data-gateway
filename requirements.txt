@@ -1,0 +1,2 @@
+jsonschema==4.26.0
+grpcio==1.84.0
