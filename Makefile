@@ -1,6 +1,6 @@
 PYTHON ?= python3
 DOCS_REVISION := $(shell $(PYTHON) -c "import json;print(json.load(open('upstream.lock.json'))['docs']['commit'])")
-.PHONY: upstream test docs-check error-adoption check clean
+.PHONY: upstream test docs-check error-adoption check clean bench
 upstream:
 	$(PYTHON) tools/fetch_upstream.py
 test:
@@ -10,3 +10,5 @@ docs-check:
 check: test docs-check
 clean:
 	$(PYTHON) -c "import shutil; shutil.rmtree('build', ignore_errors=True)"
+bench:
+	$(PYTHON) benchmarks/bench.py --check --clients 8 $(if $(BENCH_DIR),--dir $(BENCH_DIR),)
