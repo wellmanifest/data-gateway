@@ -48,7 +48,9 @@
           "lib/**",
           "packages/**",
           "test/**",
-          "tests/**"
+          "tests/**",
+          "data_gateway/**",
+          "benchmarks/**"
         ]
       },
       "governance": {
@@ -89,7 +91,8 @@
           "Dockerfile*",
           "compose*.yml",
           "compose*.yaml",
-          "infra/**"
+          "infra/**",
+          ".github/workflows/ci.yml"
         ]
       },
       "integration": {
@@ -115,7 +118,14 @@
           "events/**",
           "error/**",
           "models/**",
-          "proto/**"
+          "proto/**",
+          "requirements.txt",
+          "requirements-dev.txt",
+          "upstream.lock.json",
+          "Makefile",
+          "tools/**",
+          "errors/**",
+          "logs-error-catalog.v1.json"
         ]
       },
       "interfaces": {
