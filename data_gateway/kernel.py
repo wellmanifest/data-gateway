@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from jsonschema import Draft202012Validator, FormatChecker
+import fastjsonschema
 
 from data_gateway.store import Store, ZERO
 from data_gateway.upstream import ROOT, data_plane
@@ -24,6 +24,24 @@ SUBJECT=re.compile(r'[a-z][a-z0-9+.-]*:[A-Za-z0-9._:/-]+')
 UUID_TEXT=re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
 # Outcome of an error code in the audit stream; everything else is a rejected request.
 FAILED_CODES={'DP-INTEGRITY-001','DP-SOURCE-001'}
+# The only JSON Schema format in the operation catalog; same rule as jsonschema's uuid checker (hyphenated, any case).
+FORMATS={'uuid':r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
+
+# Draft 2020-12 treats these as annotations; fastjsonschema (draft-07) would assert contentEncoding.
+ANNOTATIONS={'contentEncoding','contentMediaType'}
+
+def _annotations_removed(schema):
+    if isinstance(schema,dict): return {k:_annotations_removed(v) for k,v in schema.items() if k not in ANNOTATIONS}
+    if isinstance(schema,list): return [_annotations_removed(v) for v in schema]
+    return schema
+
+class CompiledSchema:
+    """Generated validator for one catalog schema; equivalence with Draft 2020-12 is pinned by tests/test_schema_equivalence.py."""
+    def __init__(self,schema): self.check=fastjsonschema.compile(_annotations_removed(schema),formats=FORMATS)
+    def valid(self,value):
+        try: self.check(value)
+        except fastjsonschema.JsonSchemaException: return False
+        return True
 
 class GatewayError(Exception):
     def __init__(self,code,message,retryable=False):
@@ -54,9 +72,9 @@ class Kernel:
         self.codes=error_codes()
         self.store=Store(database);self.tenant=tenant;self.clock=clock
         self.handlers={'resource.publish':self._publish,'resource.read':self._read}
-        self.validators={name:(Draft202012Validator(op['inputSchema'],format_checker=FormatChecker()),
-                               Draft202012Validator(op['outputSchema'],format_checker=FormatChecker()))
+        self.validators={name:(CompiledSchema(op['inputSchema']),CompiledSchema(op['outputSchema']))
                          for name,op in self.operations.items()}
+        self.event_schemas=frozenset(self.contracts[0]['events'])
 
     def close(self): self.store.close()
 
@@ -64,18 +82,23 @@ class Kernel:
         """Execute one line. `scopes=None` means a local, already-authenticated operator (CLI, stdio MCP)."""
         line=self.line
         try:
-            if line.classify(text,self.contracts)!='request': return Outcome('violation',None,message='Only operation request lines are executable')
+            # One strict parse feeds classification and the input hash; classify() order is kept: event, uri, response, request.
+            kind,target,variables=line.parse(text)
+            if variables.get('schema') in self.event_schemas or kind not in self.operations:
+                return Outcome('violation',None,message='Only operation request lines are executable')
             name,envelope=line.line_to_request(text,self.contracts)
-            target=line.parse(text)[1];input_hash=line.line_hash(text)
+            input_hash=hashlib.sha256(line.format_line(kind,target,variables).encode('utf-8')).hexdigest()
         except line.LineError as error:
             return Outcome('violation',None,message=str(error))
         request_id=envelope.get('requestId')
         if not isinstance(request_id,str) or not UUID_TEXT.fullmatch(request_id):
             return Outcome('violation',None,message='requestId must be a lowercase UUID')
         operation=self.operations[name]
-        with self.store.transaction():
+        # Queries commit only their audit record: WAL synchronous=NORMAL survives a process crash, while every
+        # command keeps synchronous=FULL (data-plane SQLite profile) for its events, projection and audit.
+        with self.store.transaction(durable=operation['cqrs']!='query'):
             try:
-                if next(self.validators[name][0].iter_errors(envelope),None) is not None:
+                if not self.validators[name][0].valid(envelope):
                     raise GatewayError('GW-INPUT-001','Input does not match the operation schema.')
                 if scopes is not None and not set(operation['scopes'])<=set(scopes):
                     raise GatewayError('GW-AUTH-001','Missing scope for this operation.')
@@ -86,7 +109,7 @@ class Kernel:
                 try:
                     result,replayed=handler(envelope,input_hash,operation)
                     output={'requestId':request_id,'result':result,'replayed':replayed}
-                    if next(self.validators[name][1].iter_errors(output),None) is not None:
+                    if not self.validators[name][1].valid(output):
                         raise GatewayError('DP-INTEGRITY-001','Handler output violates the operation contract.')
                 except GatewayError:
                     self.store.db.execute('ROLLBACK TO handler');self.store.db.execute('RELEASE handler');raise

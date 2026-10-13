@@ -10,6 +10,10 @@ from contextlib import contextmanager
 from data_gateway.upstream import data_plane
 
 ZERO='0'*64
+
+class _Batch:
+    """Commands sharing one SQLite transaction and one fsync; every member waits for its COMMIT."""
+    def __init__(self): self.members=0;self.durable=False;self.error=None;self.done=threading.Event()
 DDL='''
 CREATE TABLE IF NOT EXISTS events (
  event_urn TEXT PRIMARY KEY, stream_urn TEXT NOT NULL, version INTEGER NOT NULL,
@@ -30,7 +34,10 @@ CREATE TRIGGER IF NOT EXISTS immutable_audit_delete BEFORE DELETE ON audit BEGIN
 '''
 
 class Store:
-    def __init__(self,path):
+    def __init__(self,path,*,commit_window=0.002,max_batch=64):
+        """commit_window: seconds a command waits for concurrent commands to share its COMMIT. A command that is
+        alone commits at once, so single-client latency does not pay the window. 0 groups only commands that are
+        already queued; None commits every command by itself inside the store lock (no grouping)."""
         _,_,events=data_plane()
         self.canonical=events.canonical;self.event_hash=events.event_hash
         self.db=sqlite3.connect(str(path),isolation_level=None,check_same_thread=False)
@@ -39,18 +46,55 @@ class Store:
             self.db.execute('PRAGMA '+pragma)
         self.db.executescript(DDL)
         self.lock=threading.Lock()
+        self.state=threading.Lock();self.inflight=0;self.batch=None
+        self.commit_window=commit_window;self.max_batch=max_batch;self.batches=[]
 
     def close(self): self.db.close()
 
     @contextmanager
-    def transaction(self):
-        with self.lock:
-            self.db.execute('BEGIN IMMEDIATE')
-            try:
-                yield self
-                self.db.execute('COMMIT')
-            except BaseException:
-                self.db.execute('ROLLBACK');raise
+    def transaction(self,durable=True):
+        """Run one command in its own SAVEPOINT inside the current group transaction and return only after COMMIT.
+
+        durable=False marks a query: a group made only of queries commits with WAL synchronous=NORMAL (its audit
+        records survive a process crash); any command in the group makes the COMMIT synchronous=FULL.
+        """
+        with self.state: self.inflight+=1
+        batch=None
+        try:
+            with self.lock:
+                if self.batch is not None and durable and not self.batch.durable:
+                    self._commit_locked(self.batch)  # a command never commits with a query group's weaker sync
+                if self.batch is None:
+                    # SQLite fixes the sync level outside a transaction, so the group's first member decides it.
+                    self.db.execute('PRAGMA synchronous = '+('FULL' if durable else 'NORMAL'))
+                    self.db.execute('BEGIN IMMEDIATE');self.batch=_Batch();self.batch.durable=durable
+                batch=self.batch;batch.members+=1
+                self.db.execute('SAVEPOINT command')
+                try:
+                    yield self
+                except BaseException:
+                    self.db.execute('ROLLBACK TO command');self.db.execute('RELEASE command');raise
+                self.db.execute('RELEASE command')
+                if self.commit_window is None: self._commit_locked(batch)
+        finally:
+            with self.state:
+                self.inflight-=1;alone=self.inflight==0
+            if batch is not None and (alone or batch.members>=self.max_batch or not batch.done.wait(self.commit_window)):
+                self._commit(batch)
+        if batch.error is not None: raise batch.error
+
+    def _commit(self,batch):
+        with self.lock: self._commit_locked(batch)
+
+    def _commit_locked(self,batch):
+        if self.batch is not batch: return  # another member already committed this group
+        try:
+            self.db.execute('COMMIT')
+        except sqlite3.Error as error:
+            batch.error=error
+            if self.db.in_transaction: self.db.execute('ROLLBACK')
+        finally:
+            self.batch=None;self.batches.append(batch.members);batch.done.set()
 
     def append_event(self,event):
         raw=self.canonical(event)
