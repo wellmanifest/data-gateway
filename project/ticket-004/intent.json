@@ -1,0 +1,30 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-004",
+  "summary": "Gateway performance fixes and group commit",
+  "workstream": "application",
+  "classification": {
+    "kind": "FEATURE",
+    "priority": "P2",
+    "origin": "requested"
+  },
+  "allowedPaths": [
+    "project/ticket-004/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "benchmarks/**",
+    "data_gateway/kernel.py",
+    "data_gateway/store.py",
+    "tests/test_group_commit.py",
+    "tests/test_schema_equivalence.py"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [
+    "ticket-003"
+  ],
+  "conflictsWith": [],
+  "integrationTicket": null
+}
