@@ -1,0 +1,75 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-002",
+  "summary": "Assign gateway source paths to workstreams",
+  "workstream": "governance",
+  "classification": {
+    "kind": "SERVICE",
+    "priority": "P2",
+    "origin": "requested"
+  },
+  "allowedPaths": [
+    "project/ticket-002/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    ".governance/manifest.json"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md",
+    "data_gateway/**",
+    "tests/**",
+    "docs/**"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "06841594eb022bb6ae4828f457407d189a934927",
+    "targetBranch": "main",
+    "outcome": "Every tracked gateway path is owned by exactly one workstream, so product tickets (performance fixes and the benchmark) can be allocated.",
+    "nonGoals": [
+      "Change gateway code, tests, docs or CI behaviour",
+      "Change ownership already assigned by the managed base manifest"
+    ],
+    "complexity": "XS",
+    "estimatedMinutes": 10,
+    "budgets": {
+      "maxImplementationFiles": 2,
+      "maxAffectedComponents": 1,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Extend only the target-owned .governance/manifest.json: application owns data_gateway/** and benchmarks/**; integration owns dependency manifests, upstream lock, Makefile, tools and the error catalog; infrastructure owns the CI workflow. No responsibility moves between workstreams: every listed path was previously owned by none.",
+      "components": [
+        {
+          "name": "governance-config",
+          "paths": [
+            ".governance/manifest.json"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Close the PR; after publication revert through a new governance ticket."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-02",
+        "commands": [
+          "./project/governance-check.sh"
+        ],
+        "evidence": "project/ticket-002/README.md"
+      }
+    ]
+  }
+}
