@@ -21,10 +21,10 @@
   },
   "docs": {
     "repository": "https://github.com/wellmanifest/docs",
-    "commit": "ebe7501063ef4f3e63ded610c2d3183010ca636e",
+    "commit": "19efafbeb18923cfd51cc69bd519330488500137",
     "files": {
-      "docs/standard/policy.json": "f6ba9c011ea1d9260e7fac3a1638a767d5ebc9f7d9b32ed51cc3aea22fe95d8c",
-      "docs/standard/check.py": "8d76dc88c82897332d3671c236eac20610ed42713ad9dbb6e1515e1c4d9175f3"
+      "docs/standard/policy.json": "fac05e720ec49370ba393e817a4a03b895d7ed33828e09b3420f9fcfb09264b0",
+      "docs/standard/check.py": "b7a23ee84e66d3c58a27646abdc6e130962c985da37f83c1b08a7897a40f7e31"
     }
   }
 }
