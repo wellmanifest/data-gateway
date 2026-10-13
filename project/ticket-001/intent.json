@@ -1,0 +1,146 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-001",
+  "summary": "Adopt wellmanifest/new-project 0.20.97 governance",
+  "workstream": "governance",
+  "classification": {
+    "kind": "FEATURE",
+    "priority": "P2",
+    "origin": "requested"
+  },
+  "allowedPaths": [
+    "project/ticket-001/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    ".aider.conf.yml",
+    ".cursor/rules/**",
+    ".githooks/**",
+    ".github/copilot-instructions.md",
+    ".github/workflows/new-project-governance.yml",
+    ".gitignore",
+    ".governance/**",
+    ".subactor/**",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "GEMINI.md",
+    "project.bat",
+    "project.sh",
+    "project/**",
+    "scripts/install-agent-hosts.sh",
+    "scripts/runtime.sh",
+    "wellmanifest_governance.py",
+    "worktree-guard.yaml",
+    ".gitattributes",
+    ".github/workflows/new-project-branch-hygiene.yml"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md",
+    "data_gateway/**",
+    "tests/**",
+    "tools/**",
+    "errors/**",
+    "docs/**",
+    "upstream.lock.json",
+    "logs-error-catalog.v1.json"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "78b6b9113f2e85c9320cf18f1d07e89e26df0f29",
+    "targetBranch": "main",
+    "outcome": "data-gateway carries the immutable wellmanifest/new-project 0.20.97 governance package so further work is allocated through tickets and can be enrolled for independent Validator publication.",
+    "nonGoals": [
+      "Change gateway code, tests, error catalog, upstream pins or docs",
+      "Enroll the repository in the Validator registry or OneDev profile",
+      "Let an interactive agent approve or merge its own pull request"
+    ],
+    "complexity": "M",
+    "estimatedMinutes": 30,
+    "standardAdoption": {
+      "sourceRepository": "wellmanifest/new-project",
+      "fromRevision": null,
+      "toRevision": "c6587635bafb054241fd71fd22793af47acae83b"
+    },
+    "budgets": {
+      "maxImplementationFiles": 9,
+      "maxAffectedComponents": 3,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Install the published immutable package through its adopter with --bootstrap-native-adoption, extend only the repository-local governance ownership for the two installer files the base manifest leaves unowned, and keep product code untouched.",
+      "components": [
+        {
+          "name": "governance-package",
+          "paths": [
+            ".aider.conf.yml",
+            ".cursor/rules/**",
+            ".githooks/**",
+            ".github/copilot-instructions.md",
+            ".gitattributes",
+            ".gitignore",
+            ".governance/**",
+            ".subactor/**",
+            "AGENTS.md",
+            "CLAUDE.md",
+            "GEMINI.md",
+            "project.bat",
+            "project.sh",
+            "project/**",
+            "scripts/install-agent-hosts.sh",
+            "scripts/runtime.sh",
+            "wellmanifest_governance.py",
+            "worktree-guard.yaml",
+            "TODO.md"
+          ]
+        },
+        {
+          "name": "governance-workflows",
+          "paths": [
+            ".github/workflows/new-project-governance.yml",
+            ".github/workflows/new-project-branch-hygiene.yml"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Before protected publication, close the PR without merge and preserve its branch; after publication, revert through a new reviewed ticket."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-02",
+        "commands": [
+          "python3 /path/to/new-project@c6587635/scripts/create_adoption_lock.py --target-root . --source-revision c6587635bafb054241fd71fd22793af47acae83b --check"
+        ],
+        "evidence": "project/ticket-001/ai-claude.md"
+      },
+      {
+        "criterion": "AC-03",
+        "commands": [
+          "./project/governance-check.sh",
+          "make upstream",
+          "make test",
+          "make docs-check BASE=<base>"
+        ],
+        "evidence": "project/ticket-001/ai-claude.md"
+      },
+      {
+        "criterion": "AC-04",
+        "commands": [
+          "hosted conformance and new-project governance checks on the PR head"
+        ],
+        "evidence": "GitHub pull request checks"
+      }
+    ]
+  }
+}
