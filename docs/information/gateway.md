@@ -3,13 +3,14 @@
   "schema": "wellmanifest.docs/document/v1",
   "id": "gateway",
   "kind": "information",
-  "version": 1,
+  "version": 2,
   "title": "Referencyjny gateway data-plane.line/v1",
   "status": "proposed",
   "owner": "wellmanifest/data-gateway",
+  "scope": "repository",
   "created": "2026-10-12",
-  "updated": "2026-10-12",
-  "review_after": "2026-10-26",
+  "updated": "2026-10-13",
+  "review_after": "2026-10-27",
   "source_revision": "bdf1a3bc46aa6ef2408249f4d5733760f864e7a7",
   "affected_repositories": [
     "wellmanifest/data-gateway"
@@ -43,7 +44,7 @@ zewnętrznego IdP, relay do PostgreSQL i GraphQL.
 ## Evidence
 
 Piny w `upstream.lock.json` (commit i SHA-256 plików): data-plane `bdf1a3b`,
-logs `cd9d955`, docs `ebe7501`. Testy `tests/test_gateway.py`: zachowanie kernela,
+logs `cd9d955`, docs 0.6.0 `19efafb`. Testy `tests/test_gateway.py`: zachowanie kernela,
 rollback efektów, koperta eventu domenowego, walidacja audytu pinowanym
 `logs_check.validate_event`, adopcja katalogu `GW`, identyczne linie przez cztery
 transporty, kodek `Line` zgodny z protoc, tokeny i bind tylko na loopback.
