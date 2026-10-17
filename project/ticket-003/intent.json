@@ -1,28 +1,87 @@
 {
   "schema": "new-project.intent/v3",
   "ticket": "ticket-003",
-  "summary": "Benchmark dependencies, make bench and benchmark report",
-  "workstream": "integration",
+  "summary": "Remediate SQLite and subprocess loop findings in data-gateway",
+  "workstream": "application",
   "classification": {
-    "kind": "FEATURE",
+    "kind": "SERVICE",
     "priority": "P2",
-    "origin": "requested"
+    "origin": "health"
   },
   "allowedPaths": [
     "project/ticket-003/**",
     "TODO.md",
     "project/TICKETS.md",
-    "Makefile",
-    "docs/README.md",
-    "docs/analysis/gateway-benchmark.md",
-    "requirements-dev.txt",
-    "requirements.txt"
+    "data_gateway/cli.py",
+    "data_gateway/store.py",
+    "data_gateway/upstream.py",
+    ".governance/standard-adoption.json",
+    "project/ticket-004/README.md"
   ],
   "forbiddenPaths": [
     "project/ticket-*/user-*.md"
   ],
-  "stacks": [],
+  "stacks": [
+    "python"
+  ],
   "dependsOn": [],
   "conflictsWith": [],
-  "integrationTicket": null
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "6eecedeeb66fb8a3b436ca6689331df9d013aa4d",
+    "targetBranch": "main",
+    "outcome": "Remediate SQLite and subprocess loop findings in data-gateway and align standard adoption pack evidence with zero findings.",
+    "nonGoals": [
+      "No unrelated runtime or public contract changes"
+    ],
+    "complexity": "S",
+    "estimatedMinutes": 25,
+    "budgets": {
+      "maxImplementationFiles": 5,
+      "maxAffectedComponents": 2,
+      "maxPublicInterfaceChanges": 1,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Extract loop helpers, wire optional parameters, and align standard-adoption pack evidence without altering external behavior.",
+      "components": [
+        {
+          "name": "performance-remediation",
+          "paths": [
+            "data_gateway/cli.py",
+            "data_gateway/store.py",
+            "data_gateway/upstream.py"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert the ticket branch commit or close the pull request before merge."
+    },
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 .governance/standard_pack_check.py --root .",
+          "./project/governance-check.sh"
+        ],
+        "evidence": "project/ticket-003/README.md"
+      },
+      {
+        "criterion": "AC-02",
+        "commands": [
+          "pytest -q"
+        ],
+        "evidence": "project/ticket-003/README.md"
+      }
+    ],
+    "runtimeDependencies": []
+  }
 }
