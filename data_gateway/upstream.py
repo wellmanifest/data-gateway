@@ -26,6 +26,9 @@ def verify(name,path=None):
         if hashlib.sha256((path/relative).read_bytes()).hexdigest()!=digest: raise UpstreamError(f'{name} digest mismatch: {relative}')
     return path
 
+def _run_git(path, args):
+    subprocess.run(['git','-C',str(path),*args],check=True)
+
 def fetch(name):
     """Create the ignored build checkout at the pinned commit; an existing checkout is only verified."""
     pin=LOCK[name];path=location(name)
@@ -33,7 +36,7 @@ def fetch(name):
         if os.environ.get(ENV[name]): raise UpstreamError(f'{ENV[name]} does not exist')
         path.mkdir(parents=True)
         for args in (['init','-q'],['fetch','--quiet','--depth','1',pin['repository'],pin['commit']],['checkout','--quiet','--detach','FETCH_HEAD']):
-            subprocess.run(['git','-C',str(path),*args],check=True)
+            _run_git(path,args)
     return verify(name,path)
 
 _data_plane=None

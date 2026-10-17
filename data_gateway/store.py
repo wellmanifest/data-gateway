@@ -33,6 +33,9 @@ CREATE TRIGGER IF NOT EXISTS immutable_audit_update BEFORE UPDATE ON audit BEGIN
 CREATE TRIGGER IF NOT EXISTS immutable_audit_delete BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT,'immutable audit'); END;
 '''
 
+def _apply_pragma(db, pragma):
+    db.execute('PRAGMA '+pragma)
+
 class Store:
     def __init__(self,path,*,commit_window=0.002,max_batch=64):
         """commit_window: seconds a command waits for concurrent commands to share its COMMIT. A command that is
@@ -43,7 +46,7 @@ class Store:
         self.db=sqlite3.connect(str(path),isolation_level=None,check_same_thread=False)
         # data-plane low-ram-v1 SQLite profile: durability over write speed, small cache.
         for pragma in ('foreign_keys = ON','journal_mode = WAL','synchronous = FULL','cache_size = -2048','busy_timeout = 5000'):
-            self.db.execute('PRAGMA '+pragma)
+            _apply_pragma(self.db, pragma)
         self.db.executescript(DDL)
         self.lock=threading.Lock()
         self.state=threading.Lock();self.inflight=0;self.batch=None
@@ -127,7 +130,9 @@ class Store:
 
     def audit_jsonl(self):
         """Canonical wellmanifest/logs JSONL bytes of the audit stream."""
-        return b''.join(raw+b'\n' for (raw,) in self.db.execute('SELECT canonical FROM audit ORDER BY sequence'))
+        rows=self.db.execute('SELECT canonical FROM audit ORDER BY sequence').fetchall()
+        return b''.join(raw+b'\n' for (raw,) in rows)
 
     def domain_events(self):
-        return [raw for (raw,) in self.db.execute('SELECT canonical FROM events ORDER BY rowid')]
+        rows=self.db.execute('SELECT canonical FROM events ORDER BY rowid').fetchall()
+        return [raw for (raw,) in rows]

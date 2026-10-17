@@ -7,6 +7,12 @@ import sys
 from data_gateway.auth import Authenticator
 from data_gateway.kernel import EXIT_CODE, Kernel
 
+def _run_line(kernel, item):
+    outcome=kernel.execute(item)
+    if outcome.kind=='violation': print(json.dumps({'error':outcome.message}),file=sys.stderr)
+    else: print(outcome.line)
+    return EXIT_CODE[outcome.kind]
+
 def main(argv=None):
     p=argparse.ArgumentParser(prog='data-gateway',description='data-plane.line/v1 reference gateway')
     p.add_argument('--db',default='data-gateway.sqlite',help='SQLite event store (one writer per file)')
@@ -26,10 +32,7 @@ def main(argv=None):
             items=[args.line] if args.line is not None else [line for line in sys.stdin.read().splitlines() if line.strip()]
             worst=0
             for item in items:
-                outcome=kernel.execute(item)
-                if outcome.kind=='violation': print(json.dumps({'error':outcome.message}),file=sys.stderr)
-                else: print(outcome.line)
-                worst=max(worst,EXIT_CODE[outcome.kind])
+                worst=max(worst,_run_line(kernel,item))
             return worst
         if args.command=='audit':
             sys.stdout.buffer.write(kernel.store.audit_jsonl());return 0
