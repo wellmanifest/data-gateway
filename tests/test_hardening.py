@@ -150,6 +150,15 @@ class HardeningTests(unittest.TestCase):
         r4 = handle(k, {"jsonrpc": "1.0", "id": 4, "method": "ping"})
         self.assertEqual(r4["error"]["code"], -32600)
 
+        # JSON-RPC 2.0 permits String, Number (including finite floats), or explicit Null IDs, while rejecting bool/array/object IDs
+        self.assertEqual(handle(k, {"jsonrpc": "2.0", "id": None, "method": "ping"}), {"jsonrpc": "2.0", "id": None, "result": {}})
+        self.assertEqual(handle(k, {"jsonrpc": "2.0", "id": 2.5, "method": "ping"}), {"jsonrpc": "2.0", "id": 2.5, "result": {}})
+        self.assertIsNone(handle(k, {"jsonrpc": "2.0", "method": "notifications/initialized"}))
+        for bad_id in (True, False, [1], {"id": 1}):
+            with self.subTest(bad_id=bad_id):
+                rejected = handle(k, {"jsonrpc": "2.0", "id": bad_id, "method": "ping"})
+                self.assertEqual((rejected["id"], rejected["error"]["code"]), (None, -32600))
+
         out = io.StringIO()
         oversized = ("x" * (MAX_STDIO_FRAME_CHARS + 10)) + "\n"
         nan_frame = '{"jsonrpc":"2.0","id":5,"method":"ping","params":{"v":NaN}}\n'

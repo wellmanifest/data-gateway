@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 
 PROTOCOL = "2025-06-18"
 MAX_LINE_CHARS = 65536
@@ -23,7 +24,11 @@ def _reject_nonfinite(constant):
 
 
 def _valid_rpc_id(ident):
-    return isinstance(ident, (str, int)) and not isinstance(ident, bool)
+    if ident is None or isinstance(ident, str):
+        return True
+    if isinstance(ident, bool):
+        return False
+    return isinstance(ident, (int, float)) and math.isfinite(ident)
 
 
 def handle(kernel, message):
