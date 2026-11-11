@@ -1,0 +1,29 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-005",
+  "summary": "Harden transport decoders, token file loading, and bounded store telemetry",
+  "workstream": "application",
+  "classification": {
+    "kind": "BUG",
+    "priority": "P2",
+    "origin": "health"
+  },
+  "allowedPaths": [
+    "project/ticket-005/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "data_gateway/auth.py",
+    "data_gateway/grpc_server.py",
+    "data_gateway/mcp.py",
+    "data_gateway/rest.py",
+    "data_gateway/store.py",
+    "tests/test_hardening.py"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null
+}
