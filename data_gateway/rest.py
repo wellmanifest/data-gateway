@@ -1,4 +1,5 @@
 """REST transport: POST /v2/line with one data-plane.line/v1 line; the response body is one line."""
+
 from __future__ import annotations
 
 import json
@@ -52,13 +53,21 @@ def make_server(kernel, authenticator, host="127.0.0.1", port=8080):
                 self.close_connection = True
 
         def violation(self, status, message):
-            self.reply(status, json.dumps({"error": message}) + "\n", "application/json")
+            self.reply(
+                status, json.dumps({"error": message}) + "\n", "application/json"
+            )
 
         def do_POST(self):
             if self.headers.get("Transfer-Encoding") is not None:
                 self.close_connection = True
                 return self.violation(400, "Transfer-Encoding is not supported")
-            length = _parse_content_length(self.headers.get("Content-Length"))
+            cl_headers = self.headers.get_all("Content-Length")
+            if cl_headers is not None and len(cl_headers) > 1:
+                self.close_connection = True
+                return self.violation(
+                    400, "Multiple Content-Length headers are not allowed"
+                )
+            length = _parse_content_length(cl_headers[0] if cl_headers else None)
             if length is None:
                 self.close_connection = True
                 return self.violation(400, "Invalid Content-Length")
@@ -68,7 +77,9 @@ def make_server(kernel, authenticator, host="127.0.0.1", port=8080):
             if self.path != "/v2/line":
                 self._drain_bounded(length)
                 return self.violation(404, "Use POST /v2/line")
-            essence = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+            essence = (
+                self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+            )
             if essence != "text/plain":
                 self._drain_bounded(length)
                 return self.violation(415, "Content-Type must be text/plain")

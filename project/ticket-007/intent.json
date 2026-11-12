@@ -1,0 +1,30 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-007",
+  "summary": "Harden auth symlink-parent traversal, bounded stdio streaming, UTF-8 surrogates, and duplicate header smuggling",
+  "workstream": "application",
+  "classification": {
+    "kind": "BUG",
+    "priority": "P1",
+    "origin": "health"
+  },
+  "allowedPaths": [
+    "project/ticket-007/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "data_gateway/auth.py",
+    "data_gateway/cli.py",
+    "data_gateway/grpc_server.py",
+    "data_gateway/kernel.py",
+    "data_gateway/mcp.py",
+    "data_gateway/rest.py",
+    "tests/test_hardening.py"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null
+}
