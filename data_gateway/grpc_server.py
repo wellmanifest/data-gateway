@@ -2,6 +2,7 @@
 
 `Line` has one string field, so its wire form is encoded here directly; tests check it against protoc output.
 """
+
 from __future__ import annotations
 
 from concurrent import futures
@@ -85,9 +86,16 @@ def decode_line(data):
 
 
 def _scopes(context, authenticator):
-    metadata = dict(context.invocation_metadata())
+    auth_values = [
+        val for key, val in context.invocation_metadata() if key == "authorization"
+    ]
+    if len(auth_values) > 1:
+        context.abort(
+            grpc.StatusCode.UNAUTHENTICATED,
+            "Multiple authorization headers are not allowed",
+        )
     try:
-        return authenticator.scopes(metadata.get("authorization"))
+        return authenticator.scopes(auth_values[0] if auth_values else None)
     except AuthError as error:
         context.abort(grpc.StatusCode.UNAUTHENTICATED, str(error))
 
@@ -118,14 +126,19 @@ def make_server(kernel, authenticator, host="127.0.0.1", port=50051):
                 unary, request_deserializer=decode_line, response_serializer=encode_line
             ),
             "Stream": grpc.stream_stream_rpc_method_handler(
-                stream, request_deserializer=decode_line, response_serializer=encode_line
+                stream,
+                request_deserializer=decode_line,
+                response_serializer=encode_line,
             ),
         },
     )
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=2),
         handlers=[handler],
-        options=[("grpc.max_receive_message_length", MAX_MESSAGE), ("grpc.max_send_message_length", MAX_MESSAGE)],
+        options=[
+            ("grpc.max_receive_message_length", MAX_MESSAGE),
+            ("grpc.max_send_message_length", MAX_MESSAGE),
+        ],
     )
     bind_host = f"[{host}]" if ":" in host and not host.startswith("[") else host
     server.bound_port = server.add_insecure_port(f"{bind_host}:{port}")
